@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"lp_fetcher_golang/internal/fetcher"
+	"lp_fetcher_golang/internal/models"
 )
 
 func init() {
@@ -35,9 +36,10 @@ func runSearch(cmd *cobra.Command, args []string) error {
 	}
 
 	result := fetcher.FetchItems(keyword, wdtoken, dash)
-	if err := finishFetchCommand(output, result.Status, result.Msg, result); err != nil {
+	materialResult := models.MaterialFetchResultFrom(result)
+	if err := finishFetchCommand(output, materialResult.Status, materialResult.Msg, materialResult); err != nil {
 		return err
 	}
-	fmt.Printf("检索完成，共 %d 条结果，已写入 %s\n", result.Count, output)
+	fmt.Printf("检索完成，共 %d 条结果，已写入 %s\n", materialResult.Count, output)
 	return nil
 }

@@ -1,6 +1,6 @@
 # lp_fetcher
 
-微店「某某唱片」商品检索 CLI 工具。支持按关键字搜索、按店铺分类浏览，并将结果渲染为 HTML 报告。
+微店「某某唱片」商品检索 CLI 工具。支持按关键字搜索、按店铺分类浏览，并将结果渲染为 Markdown 报告。
 
 ## 功能
 
@@ -9,7 +9,7 @@
 | `search` | 按关键字检索商品，结果写入 `search_result.json` |
 | `search_by_category` | 按分类 ID 检索商品，结果写入 `search_result.json` |
 | `category` | 获取店铺分类树，结果写入 `category_result.json` |
-| `render` | 读取 `search_result.json`，生成 `report.html` |
+| `render` | 读取 `search_result.json`，生成 `report.md` |
 
 ## 环境要求
 
@@ -24,7 +24,7 @@
 ./lp_fetcher render
 ```
 
-在浏览器中打开 `report.html` 查看结果。
+打开 `report.md` 查看结果。
 
 ### 按分类检索
 
@@ -66,16 +66,40 @@
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
 | `--input` | `search_result.json` | 输入 JSON 路径 |
-| `--template` | `report_template.html` | HTML 模板路径 |
-| `--output` | `report.html` | 输出 HTML 路径 |
+| `--template` | `report_template.md` | Markdown 模板路径 |
+| `--output` | `report.md` | 输出 Markdown 路径 |
 
 ## 输出文件
 
 | 文件 | 说明 |
 |------|------|
 | `category_result.json` | 分类树，含 `cateList`（`cateId`、`cateName`、嵌套 `childCateList`） |
-| `search_result.json` | 检索结果，含 `count`、`status`、`msg`、`items` |
-| `report.html` | 最终 HTML 报告，在浏览器中查看 |
+| `search_result.json` | 检索结果，含 `count`、`status`、`msg`、`materials`（按材质分组的数组） |
+| `report.md` | 最终 Markdown 报告 |
+
+`search_result.json` 示例：
+
+```json
+{
+  "count": 2,
+  "msg": "",
+  "status": "success",
+  "materials": [
+    {
+      "material": "黑胶",
+      "items": [
+        { "itemId": "123", "itemName": "Album LP", "price": "289" }
+      ]
+    },
+    {
+      "material": "CD",
+      "items": [
+        { "itemId": "456", "itemName": "Album CD", "price": "99" }
+      ]
+    }
+  ]
+}
+```
 
 ## 限制与异常
 
@@ -89,13 +113,14 @@
 ```text
 lp_fetcher_golang/
 ├── main.go                    # 程序入口
-├── report_template.html       # HTML 报告模板
+├── report_template.md         # Markdown 报告模板
+├── report_template.html       # 旧版 HTML 模板（保留，render 不再使用）
 ├── SKILL.md                   # Cursor Agent 技能说明
 ├── internal/
 │   ├── cli/                   # Cobra 子命令（search、category、render 等）
 │   ├── fetcher/               # 微店 API 请求与分页逻辑
 │   ├── models/                # 数据模型
-│   └── render/                # JSON → HTML 渲染
+│   └── render/                # JSON → Markdown 渲染
 └── bin/                       # 构建产物（gitignore）
 ```
 

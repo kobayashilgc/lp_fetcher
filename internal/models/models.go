@@ -1,6 +1,9 @@
 package models
 
-import "strings"
+import (
+	"sort"
+	"strings"
+)
 
 type Status struct {
 	Code        int    `json:"code"`
@@ -64,6 +67,77 @@ type FetchResult struct {
 	Msg    string      `json:"msg"`
 	Status string      `json:"status"`
 	Items  []ItemBrief `json:"items"`
+}
+
+type MaterialItem struct {
+	ItemID   string `json:"itemId"`
+	ItemName string `json:"itemName"`
+	Price    string `json:"price"`
+}
+
+type MaterialGroup struct {
+	Material string         `json:"material"`
+	Items    []MaterialItem `json:"items"`
+}
+
+type MaterialFetchResult struct {
+	Count     int             `json:"count"`
+	Msg       string          `json:"msg"`
+	Status    string          `json:"status"`
+	Materials []MaterialGroup `json:"materials"`
+}
+
+var materialOrder = []string{"黑胶", "CD", "其他"}
+
+func MaterialFetchResultFrom(fr FetchResult) MaterialFetchResult {
+	result := MaterialFetchResult{
+		Count:  fr.Count,
+		Msg:    fr.Msg,
+		Status: fr.Status,
+	}
+	if fr.Status == "failed" {
+		return result
+	}
+
+	groups := make(map[string][]MaterialItem)
+	for _, item := range fr.Items {
+		groups[item.Material] = append(groups[item.Material], MaterialItem{
+			ItemID:   item.ItemID,
+			ItemName: item.ItemName,
+			Price:    item.Price,
+		})
+	}
+
+	seen := make(map[string]bool)
+	for _, name := range materialOrder {
+		if items, ok := groups[name]; ok && len(items) > 0 {
+			result.Materials = append(result.Materials, MaterialGroup{
+				Material: name,
+				Items:    items,
+			})
+			seen[name] = true
+		}
+	}
+
+	var rest []string
+	for name := range groups {
+		if !seen[name] && len(groups[name]) > 0 {
+			rest = append(rest, name)
+		}
+	}
+	sort.Strings(rest)
+	for _, name := range rest {
+		result.Materials = append(result.Materials, MaterialGroup{
+			Material: name,
+			Items:    groups[name],
+		})
+	}
+
+	if result.Materials == nil {
+		result.Materials = []MaterialGroup{}
+	}
+
+	return result
 }
 
 type SearchResponse struct {

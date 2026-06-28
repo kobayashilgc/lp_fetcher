@@ -4,13 +4,10 @@
 *.sum
 
 
-./bin
-./dist
-./接口采集
-./bin/lp_fetcher
 lp_fetcher
-*_template.html
 *_result.json
+report.md
+report.html
 
 SKILL.md
 
