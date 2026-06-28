@@ -1,0 +1,15 @@
+.vscode
+.idea
+.DS_Store
+*.sum
+
+
+./bin
+./dist
+./接口采集
+./bin/lp_fetcher
+lp_fetcher
+*_template.html
+*_result.json
+
+SKILL.md

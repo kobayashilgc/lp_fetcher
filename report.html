@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>检索结果</title>
+</head>
+<body>
+
+<p>数量：1</p>
+
+<p>
+<label for="material-filter">材质筛选：</label>
+<select id="material-filter">
+<option value="">全部</option>
+</select>
+</p>
+
+<table border="1">
+<thead>
+<tr>
+<th>材质</th>
+<th>价格</th>
+<th>名称</th>
+</tr>
+</thead>
+<tbody>
+
+<tr data-material="黑胶">
+<td>黑胶</td>
+<td>289</td>
+<td>现货_Cory Wong Starship Syncopation 当代爵士 N12028U/N12028UX全新黑胶LP</td>
+</tr>
+
+</tbody>
+</table>
+
+<script>
+(function () {
+  var select = document.getElementById("material-filter");
+  var rows = document.querySelectorAll("table tbody tr[data-material]");
+  if (rows.length === 0) {
+    return;
+  }
+
+  var counts = {};
+  rows.forEach(function (row) {
+    var material = row.getAttribute("data-material");
+    counts[material] = (counts[material] || 0) + 1;
+  });
+
+  Object.keys(counts).sort().forEach(function (material) {
+    var option = document.createElement("option");
+    option.value = material;
+    option.textContent = material + " (" + counts[material] + ")";
+    select.appendChild(option);
+  });
+
+  select.addEventListener("change", function () {
+    var value = select.value;
+    rows.forEach(function (row) {
+      row.hidden = value !== "" && row.getAttribute("data-material") !== value;
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
