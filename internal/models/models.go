@@ -3,6 +3,7 @@ package models
 import (
 	"sort"
 	"strings"
+	"unicode"
 )
 
 type Status struct {
@@ -174,17 +175,16 @@ type CategoryRaw struct {
 	ChildCateList []CategoryRaw `json:"childCateList"`
 }
 
-type CategoryBrief struct {
-	CateID        int             `json:"cateId"`
-	CateName      string          `json:"cateName"`
-	ChildCateList []CategoryBrief `json:"childCateList"`
+type CategoryLeaf struct {
+	CateID  int    `json:"cateId"`
+	CatName string `json:"catName"`
 }
 
 type CategoryFetchResult struct {
-	Count    int             `json:"count"`
-	Msg      string          `json:"msg"`
-	Status   string          `json:"status"`
-	CateList []CategoryBrief `json:"cateList"`
+	Count    int            `json:"count"`
+	Msg      string         `json:"msg"`
+	Status   string         `json:"status"`
+	CateList []CategoryLeaf `json:"cateList"`
 }
 
 type CategoryResult struct {
@@ -197,22 +197,39 @@ type CategoryResponse struct {
 	Result CategoryResult `json:"result"`
 }
 
-func briefCate(raw CategoryRaw) CategoryBrief {
-	children := make([]CategoryBrief, 0, len(raw.ChildCateList))
-	for _, child := range raw.ChildCateList {
-		children = append(children, briefCate(child))
+func normalizeCatName(name string) string {
+	var b strings.Builder
+	for _, r := range name {
+		if unicode.IsSpace(r) {
+			continue
+		}
+		if r >= 'A' && r <= 'Z' {
+			b.WriteRune(r + ('a' - 'A'))
+		} else {
+			b.WriteRune(r)
+		}
 	}
-	return CategoryBrief{
-		CateID:        raw.CateID,
-		CateName:      raw.CateName,
-		ChildCateList: children,
-	}
+	return b.String()
 }
 
-func (r *CategoryResponse) BriefCateList() []CategoryBrief {
-	cates := make([]CategoryBrief, 0, len(r.Result.CateList))
-	for _, raw := range r.Result.CateList {
-		cates = append(cates, briefCate(raw))
+func collectLeafCategories(raw CategoryRaw) []CategoryLeaf {
+	if len(raw.ChildCateList) == 0 {
+		return []CategoryLeaf{{
+			CateID:  raw.CateID,
+			CatName: normalizeCatName(raw.CateName),
+		}}
 	}
-	return cates
+	leaves := make([]CategoryLeaf, 0)
+	for _, child := range raw.ChildCateList {
+		leaves = append(leaves, collectLeafCategories(child)...)
+	}
+	return leaves
+}
+
+func (r *CategoryResponse) LeafCateList() []CategoryLeaf {
+	leaves := make([]CategoryLeaf, 0)
+	for _, raw := range r.Result.CateList {
+		leaves = append(leaves, collectLeafCategories(raw)...)
+	}
+	return leaves
 }

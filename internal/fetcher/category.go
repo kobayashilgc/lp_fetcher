@@ -48,7 +48,7 @@ func FetchCategories(wdtoken string) models.CategoryFetchResult {
 		}
 	}
 
-	cateList := cateResp.BriefCateList()
+	cateList := cateResp.LeafCateList()
 	return models.CategoryFetchResult{
 		Count:    len(cateList),
 		Msg:      "",

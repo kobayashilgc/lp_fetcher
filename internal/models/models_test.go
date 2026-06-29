@@ -102,3 +102,52 @@ func TestMaterialFetchResultFrom(t *testing.T) {
 		}
 	})
 }
+
+func TestNormalizeCatName(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"spaces removed", "Cool Jazz 冷爵士", "cooljazz冷爵士"},
+		{"already lowercase", "爵士", "爵士"},
+		{"mixed case english", "ROCK Pop", "rockpop"},
+		{"tabs and newlines", "New\tLine\nTest", "newlinetest"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := normalizeCatName(tt.in); got != tt.want {
+				t.Errorf("normalizeCatName(%q) = %q, want %q", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestLeafCateList(t *testing.T) {
+	resp := CategoryResponse{
+		Result: CategoryResult{
+			CateList: []CategoryRaw{
+				{
+					CateID:   1,
+					CateName: "爵士",
+					ChildCateList: []CategoryRaw{
+						{CateID: 2, CateName: "Cool Jazz 冷爵士"},
+					},
+				},
+				{CateID: 3, CateName: "摇滚"},
+			},
+		},
+	}
+
+	got := resp.LeafCateList()
+	if len(got) != 2 {
+		t.Fatalf("len(LeafCateList()) = %d, want 2", len(got))
+	}
+	if got[0].CateID != 2 || got[0].CatName != "cooljazz冷爵士" {
+		t.Fatalf("first leaf = %+v, want cateId=2 catName=cooljazz冷爵士", got[0])
+	}
+	if got[1].CateID != 3 || got[1].CatName != "摇滚" {
+		t.Fatalf("second leaf = %+v, want cateId=3 catName=摇滚", got[1])
+	}
+}

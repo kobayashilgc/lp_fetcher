@@ -8,7 +8,7 @@
 |--------|------|
 | `search` | 按关键字检索商品，结果写入 `search_result.json` |
 | `search_by_category` | 按分类 ID 检索商品，结果写入 `search_result.json` |
-| `category` | 获取店铺分类树，结果写入 `category_result.json` |
+| `category` | 获取店铺分类叶子列表，结果写入 `category_result.json` |
 | `render` | 读取 `search_result.json`，生成 `report.md` |
 
 ## 环境要求
@@ -29,10 +29,11 @@
 ### 按分类检索
 
 ```bash
-# 1. 获取分类树（首次或分类有变更时执行）
+# 1. 获取分类叶子列表（首次或分类有变更时执行）
 ./lp_fetcher category
 
-# 2. 从 category_result.json 中找到目标 cateId，再执行分类检索
+# 2. 用 match_category.py 匹配目标 cateId，再执行分类检索
+python3 match_category.py "爵士"
 ./lp_fetcher search_by_category --cateId "<cateId>"
 ./lp_fetcher render
 ```
@@ -73,7 +74,7 @@
 
 | 文件 | 说明 |
 |------|------|
-| `category_result.json` | 分类树，含 `cateList`（`cateId`、`cateName`、嵌套 `childCateList`） |
+| `category_result.json` | 分类叶子列表，含一维 `cateList`（`cateId`、`catName`，已归一化） |
 | `search_result.json` | 检索结果，含 `count`、`status`、`msg`、`materials`（按材质分组的数组） |
 | `report.md` | 最终 Markdown 报告 |
 
@@ -101,6 +102,37 @@
 }
 ```
 
+`category_result.json` 示例：
+
+```json
+{
+  "count": 2,
+  "msg": "",
+  "status": "success",
+  "cateList": [
+    { "cateId": 141851486, "catName": "cooljazz冷爵士" },
+    { "cateId": 127630967, "catName": "爵士" }
+  ]
+}
+```
+
+### match_category.py
+
+根据关键词在 `category_result.json` 中做子串匹配，返回 `{cateId, cateName}` 列表。
+
+```bash
+python3 match_category.py "cool jazz"
+python3 match_category.py cooljazz -i category_result.json
+```
+
+输出示例：
+
+```json
+[
+  { "cateId": 141851486, "cateName": "cooljazz冷爵士" }
+]
+```
+
 ## 限制与异常
 
 - **关键字检索分页上限**：最多拉取 3 页（每页 20 条）。超出时 `status` 为 `failed`，`msg` 为「查询结果过多、请精确查询关键词」，需缩小搜索范围或改用分类检索。
@@ -116,6 +148,7 @@ lp_fetcher_golang/
 ├── report_template.md         # Markdown 报告模板
 ├── report_template.html       # 旧版 HTML 模板（保留，render 不再使用）
 ├── SKILL.md                   # Cursor Agent 技能说明
+├── match_category.py          # 分类关键词匹配脚本
 ├── internal/
 │   ├── cli/                   # Cobra 子命令（search、category、render 等）
 │   ├── fetcher/               # 微店 API 请求与分页逻辑
