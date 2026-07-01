@@ -1,6 +1,10 @@
 package models
 
-import "strings"
+import (
+	"sort"
+	"strings"
+	"unicode"
+)
 
 type Status struct {
 	Code        int    `json:"code"`
@@ -66,6 +70,77 @@ type FetchResult struct {
 	Items  []ItemBrief `json:"items"`
 }
 
+type MaterialItem struct {
+	ItemID   string `json:"itemId"`
+	ItemName string `json:"itemName"`
+	Price    string `json:"price"`
+}
+
+type MaterialGroup struct {
+	Material string         `json:"material"`
+	Items    []MaterialItem `json:"items"`
+}
+
+type MaterialFetchResult struct {
+	Count     int             `json:"count"`
+	Msg       string          `json:"msg"`
+	Status    string          `json:"status"`
+	Materials []MaterialGroup `json:"materials"`
+}
+
+var materialOrder = []string{"黑胶", "CD", "其他"}
+
+func MaterialFetchResultFrom(fr FetchResult) MaterialFetchResult {
+	result := MaterialFetchResult{
+		Count:  fr.Count,
+		Msg:    fr.Msg,
+		Status: fr.Status,
+	}
+	if fr.Status == "failed" {
+		return result
+	}
+
+	groups := make(map[string][]MaterialItem)
+	for _, item := range fr.Items {
+		groups[item.Material] = append(groups[item.Material], MaterialItem{
+			ItemID:   item.ItemID,
+			ItemName: item.ItemName,
+			Price:    item.Price,
+		})
+	}
+
+	seen := make(map[string]bool)
+	for _, name := range materialOrder {
+		if items, ok := groups[name]; ok && len(items) > 0 {
+			result.Materials = append(result.Materials, MaterialGroup{
+				Material: name,
+				Items:    items,
+			})
+			seen[name] = true
+		}
+	}
+
+	var rest []string
+	for name := range groups {
+		if !seen[name] && len(groups[name]) > 0 {
+			rest = append(rest, name)
+		}
+	}
+	sort.Strings(rest)
+	for _, name := range rest {
+		result.Materials = append(result.Materials, MaterialGroup{
+			Material: name,
+			Items:    groups[name],
+		})
+	}
+
+	if result.Materials == nil {
+		result.Materials = []MaterialGroup{}
+	}
+
+	return result
+}
+
 type SearchResponse struct {
 	Status Status       `json:"status"`
 	Result SearchResult `json:"result"`
@@ -100,17 +175,16 @@ type CategoryRaw struct {
 	ChildCateList []CategoryRaw `json:"childCateList"`
 }
 
-type CategoryBrief struct {
-	CateID        int             `json:"cateId"`
-	CateName      string          `json:"cateName"`
-	ChildCateList []CategoryBrief `json:"childCateList"`
+type CategoryLeaf struct {
+	CateID  int    `json:"cateId"`
+	CatName string `json:"catName"`
 }
 
 type CategoryFetchResult struct {
-	Count    int             `json:"count"`
-	Msg      string          `json:"msg"`
-	Status   string          `json:"status"`
-	CateList []CategoryBrief `json:"cateList"`
+	Count    int            `json:"count"`
+	Msg      string         `json:"msg"`
+	Status   string         `json:"status"`
+	CateList []CategoryLeaf `json:"cateList"`
 }
 
 type CategoryResult struct {
@@ -123,22 +197,39 @@ type CategoryResponse struct {
 	Result CategoryResult `json:"result"`
 }
 
-func briefCate(raw CategoryRaw) CategoryBrief {
-	children := make([]CategoryBrief, 0, len(raw.ChildCateList))
-	for _, child := range raw.ChildCateList {
-		children = append(children, briefCate(child))
+func normalizeCatName(name string) string {
+	var b strings.Builder
+	for _, r := range name {
+		if unicode.IsSpace(r) {
+			continue
+		}
+		if r >= 'A' && r <= 'Z' {
+			b.WriteRune(r + ('a' - 'A'))
+		} else {
+			b.WriteRune(r)
+		}
 	}
-	return CategoryBrief{
-		CateID:        raw.CateID,
-		CateName:      raw.CateName,
-		ChildCateList: children,
-	}
+	return b.String()
 }
 
-func (r *CategoryResponse) BriefCateList() []CategoryBrief {
-	cates := make([]CategoryBrief, 0, len(r.Result.CateList))
-	for _, raw := range r.Result.CateList {
-		cates = append(cates, briefCate(raw))
+func collectLeafCategories(raw CategoryRaw) []CategoryLeaf {
+	if len(raw.ChildCateList) == 0 {
+		return []CategoryLeaf{{
+			CateID:  raw.CateID,
+			CatName: normalizeCatName(raw.CateName),
+		}}
 	}
-	return cates
+	leaves := make([]CategoryLeaf, 0)
+	for _, child := range raw.ChildCateList {
+		leaves = append(leaves, collectLeafCategories(child)...)
+	}
+	return leaves
+}
+
+func (r *CategoryResponse) LeafCateList() []CategoryLeaf {
+	leaves := make([]CategoryLeaf, 0)
+	for _, raw := range r.Result.CateList {
+		leaves = append(leaves, collectLeafCategories(raw)...)
+	}
+	return leaves
 }

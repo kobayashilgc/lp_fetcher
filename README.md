@@ -1,6 +1,10 @@
 # lp_fetcher
 
-微店「某某唱片」商品检索 CLI 工具。支持按关键字搜索、按店铺分类浏览，并将结果渲染为 HTML 报告。
+微店「某某唱片」商品检索 CLI 工具。支持按关键字搜索、按店铺分类浏览，并将结果渲染为 Markdown 报告。
+
+## 免责声明
+
+本工具**仅用于辅助检索**，帮助用户更便捷地浏览与查找公开商品信息。使用者须遵守相关法律法规及平台服务条款。**严禁将本工具用于任何非法用途**（包括但不限于未经授权的数据采集、商业滥用、侵犯他人权益等行为）。因违规使用所产生的一切后果由使用者自行承担，与本项目及作者无关。
 
 ## 功能
 
@@ -8,8 +12,8 @@
 |--------|------|
 | `search` | 按关键字检索商品，结果写入 `search_result.json` |
 | `search_by_category` | 按分类 ID 检索商品，结果写入 `search_result.json` |
-| `category` | 获取店铺分类树，结果写入 `category_result.json` |
-| `render` | 读取 `search_result.json`，生成 `report.html` |
+| `category` | 获取店铺分类叶子列表，结果写入 `category_result.json` |
+| `render` | 读取 `search_result.json`，生成 `report.md` |
 
 ## 环境要求
 
@@ -24,15 +28,16 @@
 ./lp_fetcher render
 ```
 
-在浏览器中打开 `report.html` 查看结果。
+打开 `report.md` 查看结果。
 
 ### 按分类检索
 
 ```bash
-# 1. 获取分类树（首次或分类有变更时执行）
+# 1. 获取分类叶子列表（首次或分类有变更时执行）
 ./lp_fetcher category
 
-# 2. 从 category_result.json 中找到目标 cateId，再执行分类检索
+# 2. 用 match_category.py 匹配目标 cateId，再执行分类检索
+python3 match_category.py "爵士"
 ./lp_fetcher search_by_category --cateId "<cateId>"
 ./lp_fetcher render
 ```
@@ -66,16 +71,71 @@
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
 | `--input` | `search_result.json` | 输入 JSON 路径 |
-| `--template` | `report_template.html` | HTML 模板路径 |
-| `--output` | `report.html` | 输出 HTML 路径 |
+| `--template` | `report_template.md` | Markdown 模板路径 |
+| `--output` | `report.md` | 输出 Markdown 路径 |
 
 ## 输出文件
 
 | 文件 | 说明 |
 |------|------|
-| `category_result.json` | 分类树，含 `cateList`（`cateId`、`cateName`、嵌套 `childCateList`） |
-| `search_result.json` | 检索结果，含 `count`、`status`、`msg`、`items` |
-| `report.html` | 最终 HTML 报告，在浏览器中查看 |
+| `category_result.json` | 分类叶子列表，含一维 `cateList`（`cateId`、`catName`，已归一化） |
+| `search_result.json` | 检索结果，含 `count`、`status`、`msg`、`materials`（按材质分组的数组） |
+| `report.md` | 最终 Markdown 报告 |
+
+`search_result.json` 示例：
+
+```json
+{
+  "count": 2,
+  "msg": "",
+  "status": "success",
+  "materials": [
+    {
+      "material": "黑胶",
+      "items": [
+        { "itemId": "123", "itemName": "Album LP", "price": "289" }
+      ]
+    },
+    {
+      "material": "CD",
+      "items": [
+        { "itemId": "456", "itemName": "Album CD", "price": "99" }
+      ]
+    }
+  ]
+}
+```
+
+`category_result.json` 示例：
+
+```json
+{
+  "count": 2,
+  "msg": "",
+  "status": "success",
+  "cateList": [
+    { "cateId": 141851486, "catName": "cooljazz冷爵士" },
+    { "cateId": 127630967, "catName": "爵士" }
+  ]
+}
+```
+
+### match_category.py
+
+根据关键词在 `category_result.json` 中做子串匹配，返回 `{cateId, cateName}` 列表。
+
+```bash
+python3 match_category.py "cool jazz"
+python3 match_category.py cooljazz -i category_result.json
+```
+
+输出示例：
+
+```json
+[
+  { "cateId": 141851486, "cateName": "cooljazz冷爵士" }
+]
+```
 
 ## 限制与异常
 
@@ -89,13 +149,15 @@
 ```text
 lp_fetcher_golang/
 ├── main.go                    # 程序入口
-├── report_template.html       # HTML 报告模板
+├── report_template.md         # Markdown 报告模板
+├── report_template.html       # 旧版 HTML 模板（保留，render 不再使用）
 ├── SKILL.md                   # Cursor Agent 技能说明
+├── match_category.py          # 分类关键词匹配脚本
 ├── internal/
 │   ├── cli/                   # Cobra 子命令（search、category、render 等）
 │   ├── fetcher/               # 微店 API 请求与分页逻辑
 │   ├── models/                # 数据模型
-│   └── render/                # JSON → HTML 渲染
+│   └── render/                # JSON → Markdown 渲染
 └── bin/                       # 构建产物（gitignore）
 ```
 

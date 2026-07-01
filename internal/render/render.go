@@ -9,62 +9,62 @@ import (
 	"lp_fetcher_golang/internal/models"
 )
 
-const (
-	beginItemRow = "<!-- BEGIN_ITEM_ROW -->"
-	endItemRow   = "<!-- END_ITEM_ROW -->"
-)
+const notFoundText = "未找到相关物品"
 
-func LoadSearchResult(path string) (models.FetchResult, string, error) {
+func LoadSearchResult(path string) (models.MaterialFetchResult, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return models.FetchResult{}, "", fmt.Errorf("未找到 JSON 文件: %s", path)
+		return models.MaterialFetchResult{}, fmt.Errorf("未找到 JSON 文件: %s", path)
 	}
 
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return models.FetchResult{}, "", err
-	}
-
-	var result models.FetchResult
+	var result models.MaterialFetchResult
 	if err := json.Unmarshal(data, &result); err != nil {
-		return models.FetchResult{}, "", err
+		return models.MaterialFetchResult{}, err
 	}
 
-	keyword := ""
-	if kw, ok := raw["keyword"]; ok {
-		json.Unmarshal(kw, &keyword)
-	}
-
-	return result, keyword, nil
+	return result, nil
 }
 
-func RenderReport(result models.FetchResult, keyword, templatePath, outputPath string) error {
+func findMaterialItems(groups []models.MaterialGroup, name string) []models.MaterialItem {
+	for _, group := range groups {
+		if group.Material == name {
+			return group.Items
+		}
+	}
+	return nil
+}
+
+func formatMaterialSection(items []models.MaterialItem) string {
+	if len(items) == 0 {
+		return notFoundText
+	}
+
+	var b strings.Builder
+	for i, item := range items {
+		if i > 0 {
+			b.WriteByte('\n')
+		}
+		b.WriteString("- **价格**：")
+		b.WriteString(item.Price)
+		b.WriteString("，**标题**：")
+		b.WriteString(item.ItemName)
+	}
+	return b.String()
+}
+
+func RenderReport(result models.MaterialFetchResult, templatePath, outputPath string) error {
 	template, err := os.ReadFile(templatePath)
 	if err != nil {
 		return err
 	}
-	templateStr := string(template)
 
-	begin := strings.Index(templateStr, beginItemRow)
-	end := strings.Index(templateStr, endItemRow)
-	if begin < 0 || end < 0 || end <= begin {
-		return fmt.Errorf("模板中未找到行标记")
-	}
+	vinylItems := findMaterialItems(result.Materials, "黑胶")
+	cdItems := findMaterialItems(result.Materials, "CD")
 
-	rowTemplate := templateStr[begin+len(beginItemRow) : end]
+	content := string(template)
+	content = strings.ReplaceAll(content, "{{count}}", fmt.Sprintf("%d", result.Count))
+	content = strings.ReplaceAll(content, "{{vinyl_items}}", formatMaterialSection(vinylItems))
+	content = strings.ReplaceAll(content, "{{cd_items}}", formatMaterialSection(cdItems))
 
-	var rowsHTML strings.Builder
-	for _, item := range result.Items {
-		row := rowTemplate
-		row = strings.ReplaceAll(row, "{{material}}", item.Material)
-		row = strings.ReplaceAll(row, "{{price}}", item.Price)
-		row = strings.ReplaceAll(row, "{{item_name}}", item.ItemName)
-		rowsHTML.WriteString(row)
-	}
-
-	html := templateStr[:begin] + rowsHTML.String() + templateStr[end+len(endItemRow):]
-	html = strings.ReplaceAll(html, "{{keyword}}", keyword)
-	html = strings.ReplaceAll(html, "{{count}}", fmt.Sprintf("%d", result.Count))
-
-	return os.WriteFile(outputPath, []byte(html), 0644)
+	return os.WriteFile(outputPath, []byte(content), 0644)
 }
