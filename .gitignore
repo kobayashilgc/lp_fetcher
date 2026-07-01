@@ -1,14 +1,12 @@
 .vscode
 .idea
 .DS_Store
-*.sum
+
 
 
 lp_fetcher
 *_result.json
 report.md
 report.html
-
-SKILL.md
 
 package_skill.sh
