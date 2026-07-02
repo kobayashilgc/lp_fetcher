@@ -10,3 +10,8 @@ report.md
 report.html
 
 package_skill.sh
+
+# test coverage
+coverage.out
+coverage.html
+*.coverprofile

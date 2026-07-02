@@ -17,7 +17,7 @@
 
 ## 环境要求
 
-- Go 1.22+
+- Go 1.25+
 
 ## 快速开始
 
@@ -163,6 +163,6 @@ lp_fetcher_golang/
 
 ## 技术栈
 
-- Go 1.22
+- Go 1.25
 - [Cobra](https://github.com/spf13/cobra) — CLI 框架
 - 微店 Thor API（`thor.weidian.com`）

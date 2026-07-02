@@ -2,6 +2,7 @@ package fetcher
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -12,6 +13,8 @@ const (
 	pageSize       = 20
 	searchMaxPages = 3
 )
+
+var pagePause = func(d time.Duration) { time.Sleep(d) }
 
 type TooManyResultsError struct {
 	Message string
@@ -41,7 +44,7 @@ func fetchAllPages(fetchPage func(offset int) ([]models.ItemBrief, error), maxPa
 		}
 		items = append(items, itemsOnce...)
 		offset += pageSize
-		time.Sleep(time.Duration(rand.Intn(2000)+1000) * time.Millisecond)
+		pagePause(time.Duration(rand.Intn(2000)+1000) * time.Millisecond)
 	}
 
 	return items, nil
@@ -59,7 +62,7 @@ func buildFetchResult(items []models.ItemBrief, err error) models.FetchResult {
 		}
 		return models.FetchResult{
 			Count:  0,
-			Msg:    "未知错误",
+			Msg:    err.Error(),
 			Status: "failed",
 			Items:  nil,
 		}
@@ -71,6 +74,21 @@ func buildFetchResult(items []models.ItemBrief, err error) models.FetchResult {
 		Status: "success",
 		Items:  items,
 	}
+}
+
+func parseSearchResponse(body []byte) ([]models.ItemBrief, error) {
+	var searchResp models.SearchResponse
+	if err := json.Unmarshal(body, &searchResp); err != nil {
+		return nil, err
+	}
+	if searchResp.Status.Code != 0 {
+		msg := searchResp.Status.Message
+		if msg == "" {
+			msg = "未知错误"
+		}
+		return nil, fmt.Errorf("%s", msg)
+	}
+	return searchResp.BriefItems(), nil
 }
 
 func getItemsOnce(keyword, wdtoken, dash string, offset int) ([]models.ItemBrief, error) {
@@ -99,12 +117,7 @@ func getItemsOnce(keyword, wdtoken, dash string, offset int) ([]models.ItemBrief
 		return nil, err
 	}
 
-	var searchResp models.SearchResponse
-	if err := json.Unmarshal(body, &searchResp); err != nil {
-		return nil, err
-	}
-
-	return searchResp.BriefItems(), nil
+	return parseSearchResponse(body)
 }
 
 func getItemsAll(keyword, wdtoken, dash string) ([]models.ItemBrief, error) {
@@ -148,12 +161,7 @@ func getCateItemsOnce(cateID, wdtoken, dash string, offset int) ([]models.ItemBr
 		return nil, err
 	}
 
-	var searchResp models.SearchResponse
-	if err := json.Unmarshal(body, &searchResp); err != nil {
-		return nil, err
-	}
-
-	return searchResp.BriefItems(), nil
+	return parseSearchResponse(body)
 }
 
 func getCateItemsAll(cateID, wdtoken, dash string) ([]models.ItemBrief, error) {

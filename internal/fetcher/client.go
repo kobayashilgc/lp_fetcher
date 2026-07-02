@@ -6,9 +6,15 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 )
 
-const shopID = "1404154952"
+const (
+	shopID         = "1404154952"
+	httpTimeout    = 30 * time.Second
+)
+
+var httpClient = &http.Client{Timeout: httpTimeout}
 
 func shopReferer() string {
 	return fmt.Sprintf("https://shop%s.v.weidian.com/", shopID)
@@ -38,11 +44,19 @@ func doGET(reqURL, referer string) ([]byte, error) {
 	req.Header.Set("referer", referer)
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	return io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+
+	return body, nil
 }
